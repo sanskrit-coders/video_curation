@@ -1,21 +1,76 @@
 import logging
 
+import http.client as httplib
+import random
+
+import httplib2
+import time
+
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaFileUpload
 
 from video_curation import google_api_helper
 
 
 class YtVideo(object):
-    def __init__(self, id, title, yt_metadata):
+    def __init__(self, id=None, title=None, description=None, tags=None, api_service=None, privacy='public'):
         self.id = id
         self.title = title
+        self.description = description
+        self.tags = tags
+        self.privacy = privacy
+        self.api_service = api_service
+
+    @classmethod
+    def from_metadata(cls, yt_metadata, api_service=None):
+        id = yt_metadata['snippet']['resourceId']['videoId']
+        title = yt_metadata['snippet']['title']
+        description = yt_metadata['snippet'].get('description', None)
+        tags = yt_metadata['snippet'].get('tags', None)
+        api_service = api_service
+        self = YtVideo(id=id, title=title, description=description, tags=tags, api_service=api_service)
         self.yt_metadata = yt_metadata
-        
+        return self
+
+    def initialize_upload(self, filepath):
+        body=dict(
+            snippet=dict(
+                title=self.title,
+                description=self.description,
+                tags=self.tags
+            ),
+            status=dict(
+                privacyStatus=self.privacy
+            )
+        )
+    
+        # Call the API's videos.insert method to create and upload the video.
+        insert_request = self.api_service.videos().insert(
+            part=",".join(body.keys()),
+            body=body,
+            # The chunksize parameter specifies the size of each chunk of data, in
+            # bytes, that will be uploaded at a time. Set a higher value for
+            # reliable connections as fewer chunks lead to faster uploads. Set a lower
+            # value for better recovery on less reliable connections.
+            #
+            # Setting "chunksize" equal to -1 in the code below means that the entire
+            # file will be uploaded in a single HTTP request. (If the upload fails,
+            # it will still be retried where it left off.) This is usually a best
+            # practice, but if you're using Python older than 2.6 or if you're
+            # running on App Engine, you should set the chunksize to something like
+            # 1024 * 1024 (1 megabyte).
+            media_body=MediaFileUpload(filepath, chunksize=-1, resumable=True)
+        )
+    
+        self.id = resumable_upload(insert_request)
+    
     def __repr__(self):
-        return "id:%s title:%s" % (self.id, self.title, self.yt_metadata)
+        return "id:%s title:%s" % (self.id, self.title)
 
     def __lt__(self, other):
         return self.title < other.title
+
 
 class Playlist(object):
     def __init__(self, api_service, playlist_id):
@@ -51,13 +106,14 @@ class Playlist(object):
 
             # Print information about each video.
             playlist_items.extend([
-                YtVideo(title=playlist_item['snippet']['title'], id = playlist_item['snippet']['resourceId']['videoId'], yt_metadata=playlist_item['snippet'])
+                YtVideo.from_metadata(yt_metadata=playlist_item)
                 for playlist_item in playlistitems_list_response['items']
             ])
 
             playlistitems_list_request = self.api_service.playlistItems().list_next(
                 playlistitems_list_request, playlistitems_list_response)
         return playlist_items
+
 
 class Channel(object):
     def __init__(self, service_account_file=None, token_file_path=None, client_secret_file=None):
@@ -70,6 +126,10 @@ class Channel(object):
         """
         self.set_authenticated_service(service_account_file=service_account_file, token_file_path=token_file_path, client_secret_file=client_secret_file)
         self.uploads_playlist = self.get_uploads_playlist()
+        self.uploaded_vids = None
+
+    def set_uploaded_videos(self):
+        self.uploaded_vids = self.uploads_playlist.get_playlist_videos()
 
     def set_authenticated_service(self, service_account_file=None, token_file_path=None, client_secret_file=None):
         """
@@ -161,3 +221,53 @@ def build_resource(properties):
                 ref = ref[key]
     return resource
 
+# This method implements an exponential backoff strategy to resume a
+# failed upload.
+def resumable_upload(insert_request):
+    # Explicitly tell the underlying HTTP transport library not to retry, since
+    # we are handling retry logic ourselves.
+    httplib2.RETRIES = 1
+    
+    # Maximum number of times to retry before giving up.
+    MAX_RETRIES = 10
+    
+    # Always retry when these exceptions are raised.
+    RETRIABLE_EXCEPTIONS = (httplib2.HttpLib2Error, IOError, httplib.NotConnected,
+                            httplib.IncompleteRead, httplib.ImproperConnectionState,
+                            httplib.CannotSendRequest, httplib.CannotSendHeader,
+                            httplib.ResponseNotReady, httplib.BadStatusLine)
+
+    # Always retry when an apiclient.errors.HttpError with one of these status
+    # codes is raised.
+    RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
+    response = None
+    error = None
+    retry = 0
+    while response is None:
+        try:
+            logging.info("Uploading file...")
+            status, response = insert_request.next_chunk()
+            if 'id' in response:
+                logging.info("Video id '%s' was successfully uploaded." % response['id'])
+                return response['id']
+            else:
+                exit("The upload failed with an unexpected response: %s" % response)
+        except HttpError as e:
+            if e.resp.status in RETRIABLE_STATUS_CODES:
+                error = "A retriable HTTP error %d occurred:\n%s" % (e.resp.status,
+                                                                     e.content)
+            else:
+                raise
+        except RETRIABLE_EXCEPTIONS as e:
+            error = "A retriable error occurred: %s" % e
+
+        if error is not None:
+            logging.error(error)
+            retry += 1
+            if retry > MAX_RETRIES:
+                exit("No longer attempting to retry.")
+
+            max_sleep = 2 ** retry
+            sleep_seconds = random.random() * max_sleep
+            logging.info("Sleeping %f seconds and then retrying..." % sleep_seconds)
+            time.sleep(sleep_seconds)
