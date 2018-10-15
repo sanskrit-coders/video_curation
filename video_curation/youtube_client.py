@@ -6,22 +6,25 @@ from video_curation import google_api_helper
 
 
 class YtVideo(object):
-    def __init__(self, _id, title):
-        self._id = id
+    def __init__(self, id, title, yt_metadata):
+        self.id = id
         self.title = title
+        self.yt_metadata = yt_metadata
         
     def __repr__(self):
-        return "id:%s title:%s" % (self._id, self.title)
+        return "id:%s title:%s" % (self.id, self.title, self.yt_metadata)
 
+    def __lt__(self, other):
+        return self.title < other.title
 
 class Playlist(object):
     def __init__(self, api_service, playlist_id):
-        self._id = playlist_id
+        self.id = playlist_id
         self.api_service = api_service
 
         # https://developers.google.com/youtube/v3/docs/playlistItems#resource
     def add_video(self, video_id, position=0):
-        properties = {'snippet.playlistId': self._id,
+        properties = {'snippet.playlistId': self.id,
                       'snippet.resourceId.kind': 'youtube#video',
                       'snippet.resourceId.videoId': video_id,
                       'snippet.position': position}
@@ -37,7 +40,7 @@ class Playlist(object):
     def get_playlist_videos(self):
         # Retrieve the list of videos uploaded to the authenticated user's channel.
         playlistitems_list_request = self.api_service.playlistItems().list(
-            playlistId=self._id,
+            playlistId=self.id,
             part='snippet',
             maxResults=5
         )
@@ -47,8 +50,8 @@ class Playlist(object):
             playlistitems_list_response = playlistitems_list_request.execute()
 
             # Print information about each video.
-            playlist_items.append([
-                YtVideo(title = playlist_item['snippet']['title'], _id = playlist_item['snippet']['resourceId']['videoId'])
+            playlist_items.extend([
+                YtVideo(title=playlist_item['snippet']['title'], id = playlist_item['snippet']['resourceId']['videoId'], yt_metadata=playlist_item['snippet'])
                 for playlist_item in playlistitems_list_response['items']
             ])
 
@@ -57,15 +60,29 @@ class Playlist(object):
         return playlist_items
 
 class Channel(object):
-    def __init__(self, token_file_path, client_secret_file=None):
-        self.set_authenticated_service(token_file_path=token_file_path, client_secret_file=client_secret_file)
+    def __init__(self, service_account_file=None, token_file_path=None, client_secret_file=None):
+        """
+        
+        Note: Passing service_account_file does not seem to work as intended.
+        :param service_account_file:      
+        :param token_file_path: 
+        :param client_secret_file: 
+        """
+        self.set_authenticated_service(service_account_file=service_account_file, token_file_path=token_file_path, client_secret_file=client_secret_file)
         self.uploads_playlist = self.get_uploads_playlist()
 
-    def set_authenticated_service(self, token_file_path, client_secret_file=None):
+    def set_authenticated_service(self, service_account_file=None, token_file_path=None, client_secret_file=None):
+        """
+        
+        Note: Passing service_account_file does not seem to work as intended.
+        :param service_account_file:      
+        :param token_file_path: 
+        :param client_secret_file: 
+        """
         scopes = ['https://www.googleapis.com/auth/youtube']
         api_service_name = 'youtube'
         api_version = 'v3'
-        credentials = google_api_helper.get_credentials(token_file_path=token_file_path, client_secrets_file=client_secret_file, scopes=scopes)
+        credentials = google_api_helper.get_credentials(service_account_file=service_account_file, token_file_path=token_file_path, client_secrets_file=client_secret_file, scopes=scopes)
         self.api_service = build(serviceName=api_service_name, version=api_version, credentials=credentials)
         logging.info("Done authenticating.")
 

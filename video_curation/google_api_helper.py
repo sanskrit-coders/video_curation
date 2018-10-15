@@ -40,6 +40,15 @@ def get_service_from_token_file_path(token_file_path):
 
 
 def get_credentials(service_account_file=None, token_file_path=None, client_secrets_file=None, scopes=None):
+    """
+    
+    Note: Passing service_account_file does not seem to work as intended.
+    :param service_account_file: 
+    :param token_file_path: 
+    :param client_secrets_file: 
+    :param scopes: 
+    :return: 
+    """
     credentials = None
     if service_account_file is not None and os.path.exists(service_account_file):
         unscoped_credentials = service_account.Credentials.from_service_account_file(service_account_file)
