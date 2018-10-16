@@ -84,7 +84,7 @@ if __name__ == "__main__":
     channel.set_playlists()
     # local_repo.update_video_metadatas(channel)
     # local_repo.update_video_privacy(channel)
-    # for mandala_id in range(2, 10):
+    # for mandala_id in range(9, 11):
     #     local_repo.set_mandala_videos_in_playlist(mandala_id=mandala_id, yt_channel=channel)
     # logging.info(pprint.pformat(uploaded_vids))
 

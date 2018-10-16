@@ -1,3 +1,5 @@
+"""A wrapper around Youtube API."""
+
 import logging
 
 import http.client as httplib
@@ -14,6 +16,7 @@ from video_curation import google_api_helper
 
 
 class YtVideo(object):
+    """"""
     def __init__(self, id=None, title=None, description=None, tags=None, category_id=1, api_service=None, privacy='public'):
         self.id = id
         self.title = title

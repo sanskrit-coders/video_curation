@@ -25,10 +25,10 @@ class VideoRepo(object):
         self.base_mp4_file_paths = [item for sublist in
                                     [sorted(glob.glob(os.path.join(repo_path, "*.mp4"))) for repo_path in
                                      repo_paths] for item in sublist]
-        titles = [self.get_title(filepath=filepath) for filepath in self.base_mp4_file_paths]
+        titles = [self.get_title_from_path(filepath=filepath) for filepath in self.base_mp4_file_paths]
         self.title_to_path = dict(zip(titles, self.base_mp4_file_paths))
         logging.info("Got %d files" % (len(self.base_mp4_file_paths)))
         self.archive_item = archive_item
 
-    def get_title(self, filepath):
+    def get_title_from_path(self, filepath):
         return os.path.basename(filepath).replace("_", " ")[:-4]
