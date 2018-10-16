@@ -10,10 +10,14 @@ logging.basicConfig(
     format="%(levelname)s:%(asctime)s:%(module)s:%(lineno)d %(message)s")
 
 def get_video_title(mandala_sukta_id):
-    video_key = mandala_sukta_id
-    return "%s Rigveda Shakala Samhita Kerala Style ऋग्वेद-शकल-संहिता-केरल-शैल्या" % video_key
+    return "%s Rigveda Shakala Samhita Kerala Style ऋग्वेद-शकल-संहिता-केरल-शैल्या" % mandala_sukta_id
+
+def get_playlist_title(mandala_id):
+    return "%s Rigveda Shakala Samhita Kerala Style ऋग्वेद-शकल-संहिता-केरल-शैल्या" % mandala_id
 
 description = "This was produced by an IGNCA project (http://vedicheritage.gov.in/), funded by the Indian taxpayer. This has been reproduced here for convenience. Also see https://archive.org/details/shAkhala-rig-veda-kerala ."
+
+video_tags = ["RIGSSK", "Veda", "वेदाः"]
 
 class RgvedaRepo(video_repo.VideoRepo):
     
@@ -28,7 +32,7 @@ class RgvedaRepo(video_repo.VideoRepo):
         missing_mandala_video_titles = sorted(set(local_mandala_videos_map.keys()) - set(yt_mandala_video_titles))
         logging.info("Missing videos: %s", missing_mandala_video_titles)
         for title in missing_mandala_video_titles:
-            video = youtube_client.YtVideo(title=title, api_service=yt_channel.api_service, privacy='public')
+            video = youtube_client.YtVideo(title=title, api_service=yt_channel.api_service, privacy='public', tags=video_tags)
             if dry_run:
                 logging.info("Would have uploaded: %s", video)
             else:
@@ -44,12 +48,32 @@ class RgvedaRepo(video_repo.VideoRepo):
         for video in yt_mandala_videos:
             video.title = get_video_title(video.title[:len("RIGSS 10 048")])
             video.description = description
-            video.tags = ["RIGSSK", "Veda", "वेदाः"]
+            video.tags = video_tags
             video.category_id = 27
             video.sync_metadata_to_youtube()
 
-    def add_videos_to_playlist(mandala_id, uploaded_vids):
-        pass
+    def update_video_privacy(self, yt_channel):
+        yt_mandala_videos = sorted(list(filter(lambda vid: "RIGSS " in vid.title, yt_channel.uploaded_vids)))
+        for video in yt_mandala_videos:
+            video.privacy = 'public'
+            video.set_youtube_privacy()
+
+    def set_mandala_videos_in_playlist(self, mandala_id, yt_channel):
+        mandala_id_str = "RIGSS %02d" % (mandala_id)
+        yt_mandala_videos = sorted(list(filter(lambda vid: mandala_id_str in vid.title, yt_channel.uploaded_vids)))
+        possible_playlists = list(filter(lambda plist: mandala_id_str in plist.title,  yt_channel.playlists))
+        playlist = None
+        if len(possible_playlists) > 0:
+            playlist = possible_playlists[0]
+            logging.info("Found playlist %s!", playlist)
+        else:
+            playlist = youtube_client.Playlist(title=get_playlist_title(mandala_id=mandala_id_str), description=description, tags=video_tags, api_service=yt_channel.api_service, privacy='public')
+            playlist.add_to_youtube()
+
+        for video in playlist.get_playlist_videos():
+            playlist.delete_video(video.id)
+        for video in yt_mandala_videos:
+            playlist.add_video(video_id=video.id, position=yt_mandala_videos.index(video))
 
 if __name__ == "__main__":
     local_repo = RgvedaRepo(repo_paths=["/home/vvasuki/Videos/Rgveda/"]) 
@@ -57,7 +81,11 @@ if __name__ == "__main__":
     channel = youtube_client.Channel(token_file_path='/home/vvasuki/sysconf/kunchikA/google/kashcit/yt_access_token.json', client_secret_file='/home/vvasuki/sysconf/kunchikA/google/kashcit/native_client_id.json')
     logging.info("Retrieving uploaded videos.")
     channel.set_uploaded_videos()
-    local_repo.update_video_metadatas(channel)
+    channel.set_playlists()
+    # local_repo.update_video_metadatas(channel)
+    # local_repo.update_video_privacy(channel)
+    # for mandala_id in range(2, 10):
+    #     local_repo.set_mandala_videos_in_playlist(mandala_id=mandala_id, yt_channel=channel)
     # logging.info(pprint.pformat(uploaded_vids))
 
     # archive_item = audio_curation.archive_utility.ArchiveItem(archive_id="shAkhala-rig-veda-kerala")

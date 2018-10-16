@@ -89,9 +89,20 @@ class YtVideo(object):
         ).execute()
         logging.info(response)
 
+    def set_youtube_privacy(self):
+        properties = {'id': self.id,
+                      'status.privacyStatus': self.privacy,
+                      }
+        resource = get_api_request_dict(properties)
+        response = self.api_service.videos().update(
+            body=resource,
+            part='status'
+        ).execute()
+        logging.info(response)
+        
 
 class Playlist(object):
-    def __init__(self, api_service, id, title, description, tags=[], privacy='public'):
+    def __init__(self, api_service, title, id=None, description="", tags=[], privacy='public'):
         self.id = id
         self.title = title
         self.description = description
@@ -99,7 +110,14 @@ class Playlist(object):
         self.privacy = privacy
         self.api_service = api_service
 
-        # https://developers.google.com/youtube/v3/docs/playlistItems#resource
+
+    def __repr__(self):
+        return "id:%s title:%s" % (self.id, self.title)
+
+    def __lt__(self, other):
+        return self.title < other.title
+
+    # https://developers.google.com/youtube/v3/docs/playlistItems#resource
     def add_video(self, video_id, position=0):
         properties = {'snippet.playlistId': self.id,
                       'snippet.resourceId.kind': 'youtube#video',
@@ -107,7 +125,8 @@ class Playlist(object):
                       'snippet.position': position}
         resource = get_api_request_dict(properties)
         response = self.api_service.playlistItems().insert(
-            body=resource
+            body=resource,
+            part='snippet'
         ).execute()
         logging.info(response)
 
@@ -124,7 +143,7 @@ class Playlist(object):
         playlistitems_list_request = self.api_service.playlistItems().list(
             playlistId=self.id,
             part='snippet',
-            maxResults=5
+            maxResults=50
         )
 
         playlist_items = []
@@ -173,6 +192,21 @@ class Playlist(object):
         self.id = playlists_insert_response['id']
         logging.info('New playlist ID: %s' % self.id)
 
+    @classmethod
+    def from_metadata(cls, yt_metadata, api_service=None):
+        id = yt_metadata['id']
+        title = yt_metadata['snippet']['title']
+        description = yt_metadata['snippet'].get('description', None)
+        tags = yt_metadata['snippet'].get('tags', None)
+        category_id = yt_metadata['snippet'].get('categoryId', 1)
+        api_service = api_service
+        privacy = 'public'
+        if 'status' in yt_metadata:
+            privacy = yt_metadata['status'].get('privacy', "public")
+        self = Playlist(id=id, title=title, description=description, tags=tags, privacy=privacy, api_service=api_service)
+        self.yt_metadata = yt_metadata
+        return self
+
 
 class Channel(object):
     def __init__(self, service_account_file=None, token_file_path=None, client_secret_file=None):
@@ -186,6 +220,7 @@ class Channel(object):
         self.set_authenticated_service(service_account_file=service_account_file, token_file_path=token_file_path, client_secret_file=client_secret_file)
         self.uploads_playlist = self.get_uploads_playlist()
         self.uploaded_vids = None
+        self.playlists = []
 
     def set_uploaded_videos(self):
         self.uploaded_vids = self.uploads_playlist.get_playlist_videos()
@@ -204,6 +239,25 @@ class Channel(object):
         credentials = google_api_helper.get_credentials(service_account_file=service_account_file, token_file_path=token_file_path, client_secrets_file=client_secret_file, scopes=scopes)
         self.api_service = build(serviceName=api_service_name, version=api_version, credentials=credentials)
         logging.info("Done authenticating.")
+
+    def set_playlists(self):
+        request = self.api_service.playlists().list(mine=True,
+                                          part='snippet, status',
+                                          maxResults=50
+                                          )
+        self.playlists = []
+        while request:
+            response = request.execute()
+
+            # Print information about each video.
+            self.playlists.extend([
+                Playlist.from_metadata(yt_metadata=playlist, api_service=self.api_service)
+                for playlist in response['items']
+            ])
+
+            request = self.api_service.playlists().list_next(
+                request, response)
+        
 
     def get_uploads_playlist(self):
         # Retrieve the contentDetails part of the channel resource for the
