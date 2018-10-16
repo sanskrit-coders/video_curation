@@ -14,12 +14,13 @@ from video_curation import google_api_helper
 
 
 class YtVideo(object):
-    def __init__(self, id=None, title=None, description=None, tags=None, api_service=None, privacy='public'):
+    def __init__(self, id=None, title=None, description=None, tags=None, category_id=1, api_service=None, privacy='public'):
         self.id = id
         self.title = title
         self.description = description
         self.tags = tags
         self.privacy = privacy
+        self.category_id = 1
         self.api_service = api_service
 
     @classmethod
@@ -28,10 +29,17 @@ class YtVideo(object):
         title = yt_metadata['snippet']['title']
         description = yt_metadata['snippet'].get('description', None)
         tags = yt_metadata['snippet'].get('tags', None)
+        category_id = yt_metadata['snippet'].get('categoryId', 1)
         api_service = api_service
-        self = YtVideo(id=id, title=title, description=description, tags=tags, api_service=api_service)
+        self = YtVideo(id=id, title=title, description=description, tags=tags, category_id=category_id, api_service=api_service)
         self.yt_metadata = yt_metadata
         return self
+
+    def __repr__(self):
+        return "id:%s title:%s" % (self.id, self.title)
+
+    def __lt__(self, other):
+        return self.title < other.title
 
     def initialize_upload(self, filepath):
         body=dict(
@@ -62,19 +70,33 @@ class YtVideo(object):
             # 1024 * 1024 (1 megabyte).
             media_body=MediaFileUpload(filepath, chunksize=-1, resumable=True)
         )
-    
-        self.id = resumable_upload(insert_request)
-    
-    def __repr__(self):
-        return "id:%s title:%s" % (self.id, self.title)
 
-    def __lt__(self, other):
-        return self.title < other.title
+        logging.info("Uploading %s", self)
+        self.id = resumable_upload(insert_request)
+        logging.info("Uploaded %s", self)
+
+    def sync_metadata_to_youtube(self):
+        properties = {'id': self.id,
+                      'snippet.title': self.title,
+                      'snippet.description': self.description,
+                      'snippet.tags[]': self.tags,
+                      'snippet.categoryId': self.category_id
+                      }
+        resource = get_api_request_dict(properties)
+        response = self.api_service.videos().update(
+            body=resource,
+            part='snippet'
+        ).execute()
+        logging.info(response)
 
 
 class Playlist(object):
-    def __init__(self, api_service, playlist_id):
-        self.id = playlist_id
+    def __init__(self, api_service, id, title, description, tags=[], privacy='public'):
+        self.id = id
+        self.title = title
+        self.description = description
+        self.tags = tags
+        self.privacy = privacy
         self.api_service = api_service
 
         # https://developers.google.com/youtube/v3/docs/playlistItems#resource
@@ -83,7 +105,7 @@ class Playlist(object):
                       'snippet.resourceId.kind': 'youtube#video',
                       'snippet.resourceId.videoId': video_id,
                       'snippet.position': position}
-        resource = build_resource(properties)
+        resource = get_api_request_dict(properties)
         response = self.api_service.playlistItems().insert(
             body=resource
         ).execute()
@@ -91,6 +113,11 @@ class Playlist(object):
 
     def add_videos(self, video_ids):
         [self.add_video(video_id=video_id, position=position) for position, video_id in video_ids]
+
+    # https://developers.google.com/youtube/v3/docs/playlistItems#resource
+    def delete_video(self, video_id):
+        response = self.api_service.playlistItems().delete(id=video_id).execute()
+        logging.info(response)
 
     def get_playlist_videos(self):
         # Retrieve the list of videos uploaded to the authenticated user's channel.
@@ -106,13 +133,45 @@ class Playlist(object):
 
             # Print information about each video.
             playlist_items.extend([
-                YtVideo.from_metadata(yt_metadata=playlist_item)
+                YtVideo.from_metadata(yt_metadata=playlist_item, api_service=self.api_service)
                 for playlist_item in playlistitems_list_response['items']
             ])
 
             playlistitems_list_request = self.api_service.playlistItems().list_next(
                 playlistitems_list_request, playlistitems_list_response)
         return playlist_items
+
+    def sync_metadata_to_youtube(self):
+        properties = {'id': self.id,
+                      'snippet.title': self.title,
+                      'snippet.description': self.description,
+                      'snippet.tags[]': self.tags
+                      }
+        resource = get_api_request_dict(properties)
+        response = self.api_service.playlists().update(
+            body=resource,
+            part='snippet'
+        ).execute()
+        logging.info(response)
+
+    def add_to_youtube(self):
+        body = dict(
+            snippet=dict(
+                title=self.title,
+                description=self.description,
+                tags=self.tags
+            ),
+            status=dict(
+                privacyStatus=self.privacy
+            )
+        )
+
+        playlists_insert_response = self.api_service.playlists().insert(
+            part='snippet,status',
+            body=body
+        ).execute()
+        self.id = playlists_insert_response['id']
+        logging.info('New playlist ID: %s' % self.id)
 
 
 class Channel(object):
@@ -146,25 +205,6 @@ class Channel(object):
         self.api_service = build(serviceName=api_service_name, version=api_version, credentials=credentials)
         logging.info("Done authenticating.")
 
-    def add_playlist(self, title, description="", privacy = "public"):
-        body = dict(
-            snippet=dict(
-                title=title,
-                description=description
-            ),
-            status=dict(
-                privacyStatus=privacy
-            )
-        )
-    
-        playlists_insert_response = self.api_service.playlists().insert(
-            part='snippet,status',
-            body=body
-        ).execute()
-        playlist_id = playlists_insert_response['id']
-        logging.info('New playlist ID: %s' % playlist_id)
-        return Playlist(playlist_id=playlist_id, api_service=self.api_service)
-
     def get_uploads_playlist(self):
         # Retrieve the contentDetails part of the channel resource for the
         # authenticated user's channel.
@@ -176,13 +216,13 @@ class Channel(object):
         for channel in channels_response['items']:
             # From the API response, extract the playlist ID that identifies the list
             # of videos uploaded to the authenticated user's channel.
-            return Playlist(playlist_id=channel['contentDetails']['relatedPlaylists']['uploads'], api_service=self.api_service)
+            return Playlist(id=channel['contentDetails']['relatedPlaylists']['uploads'], api_service=self.api_service, title="Uploads", description="", tags=[])
         return None
 
 
 # Build a resource based on a list of properties given as key-value pairs.
 # Leave properties with empty values out of the inserted resource.
-def build_resource(properties):
+def get_api_request_dict(properties):
     resource = {}
     for p in properties:
         # Given a key like "snippet.title", split into "snippet" and "title", where
@@ -204,7 +244,10 @@ def build_resource(properties):
                 # Leave properties without values out of inserted resource.
                 if properties[p]:
                     if is_array:
-                        ref[key] = properties[p].split(',')
+                        if isinstance(properties[p], str):
+                            ref[key] = properties[p].split(',')
+                        else:
+                            ref[key] = properties[p]
                     else:
                         ref[key] = properties[p]
             elif key not in ref:

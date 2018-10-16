@@ -1,10 +1,5 @@
-import glob
 import logging
-import os
 
-import pprint
-
-import audio_curation.archive_utility
 from video_curation import youtube_client, video_repo
 
 # Remove all handlers associated with the root logger object.
@@ -13,6 +8,12 @@ for handler in logging.root.handlers[:]:
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(levelname)s:%(asctime)s:%(module)s:%(lineno)d %(message)s")
+
+def get_video_title(mandala_sukta_id):
+    video_key = mandala_sukta_id
+    return "%s Rigveda Shakala Samhita Kerala Style ऋग्वेद-शकल-संहिता-केरल-शैल्या" % video_key
+
+description = "This was produced by an IGNCA project (http://vedicheritage.gov.in/), funded by the Indian taxpayer. This has been reproduced here for convenience. Also see https://archive.org/details/shAkhala-rig-veda-kerala ."
 
 class RgvedaRepo(video_repo.VideoRepo):
     
@@ -32,7 +33,21 @@ class RgvedaRepo(video_repo.VideoRepo):
                 logging.info("Would have uploaded: %s", video)
             else:
                 video.initialize_upload(filepath=local_mandala_videos_map[title])
-    
+
+    def upload_videos(self):
+        for mandala_id in range(1, 11):
+            self.upload_mandala_videos(mandala_id=mandala_id, yt_channel=channel, dry_run=False)
+
+
+    def update_video_metadatas(self, yt_channel):
+        yt_mandala_videos = sorted(list(filter(lambda vid: "RIGSS " in vid.title, yt_channel.uploaded_vids)))
+        for video in yt_mandala_videos:
+            video.title = get_video_title(video.title[:len("RIGSS 10 048")])
+            video.description = description
+            video.tags = ["RIGSSK", "Veda", "वेदाः"]
+            video.category_id = 27
+            video.sync_metadata_to_youtube()
+
     def add_videos_to_playlist(mandala_id, uploaded_vids):
         pass
 
@@ -42,9 +57,7 @@ if __name__ == "__main__":
     channel = youtube_client.Channel(token_file_path='/home/vvasuki/sysconf/kunchikA/google/kashcit/yt_access_token.json', client_secret_file='/home/vvasuki/sysconf/kunchikA/google/kashcit/native_client_id.json')
     logging.info("Retrieving uploaded videos.")
     channel.set_uploaded_videos()
-    for mandala_id in range(1, 11):
-        # local_repo.add_videos_to_playlist(mandala_id=mandala_id, vids=channel.uploaded_vids)
-        local_repo.upload_mandala_videos(mandala_id=mandala_id, yt_channel=channel, dry_run=False)
+    local_repo.update_video_metadatas(channel)
     # logging.info(pprint.pformat(uploaded_vids))
 
     # archive_item = audio_curation.archive_utility.ArchiveItem(archive_id="shAkhala-rig-veda-kerala")
