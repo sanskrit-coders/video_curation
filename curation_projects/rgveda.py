@@ -44,7 +44,7 @@ if __name__ == "__main__":
     channel.set_uploaded_videos()
     for mandala_id in range(1, 11):
         # local_repo.add_videos_to_playlist(mandala_id=mandala_id, vids=channel.uploaded_vids)
-        local_repo.upload_mandala_videos(mandala_id=mandala_id, yt_channel=channel, dry_run=True)
+        local_repo.upload_mandala_videos(mandala_id=mandala_id, yt_channel=channel, dry_run=False)
     # logging.info(pprint.pformat(uploaded_vids))
 
     # archive_item = audio_curation.archive_utility.ArchiveItem(archive_id="shAkhala-rig-veda-kerala")
