@@ -24,18 +24,18 @@ except (IOError, ImportError):
     long_description = ''
 
 setup(
-    name='audio_curation',
+    name='video_curation',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
     version='0.0.1',
 
-    description='Some scripts for checking and curating audio file contributions to the Mahabharata audio project.',
+    description='A package for curating video file collections, with ability to sync with youtube and archive.org video items.',
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/sanskrit-coders/audio_curation',
+    url='https://github.com/sanskrit-coders/video_curation',
 
     # Author details
     author='Sanskrit programmers',
@@ -66,7 +66,7 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords='audio internet-archive',
+    keywords='video internet-archive',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
@@ -80,8 +80,8 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['pandas', 'internetarchive', 'pydub', 
-                      'eyed3', 'gspread'],
+    install_requires=['pandas', 'internetarchive', 'audio_curation', 
+                      'google', 'python-rest-client'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,

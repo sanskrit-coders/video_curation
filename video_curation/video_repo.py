@@ -30,5 +30,6 @@ class VideoRepo(object):
         logging.info("Got %d files" % (len(self.base_mp4_file_paths)))
         self.archive_item = archive_item
 
+    # noinspection PyMethodMayBeStatic
     def get_title_from_path(self, filepath):
         return os.path.basename(filepath).replace("_", " ")[:-4]

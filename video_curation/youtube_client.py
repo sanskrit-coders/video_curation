@@ -19,12 +19,12 @@ from video_curation.google_api_helper import get_api_request_dict
 class YtVideo(object):
     """Represents a YouTube video."""
     def __init__(self, id=None, title=None, description=None, tags=None, category_id=1, api_service=None, privacy='public'):
+        self.category_id = category_id
         self.id = id
         self.title = title
         self.description = description
         self.tags = tags
         self.privacy = privacy
-        self.category_id = 1
         self.api_service = api_service
 
     @classmethod
@@ -122,7 +122,9 @@ class Playlist(object):
     """
     Represents a YouTube playlist.
     """
-    def __init__(self, api_service, title, id=None, description="", tags=[], privacy='public'):
+    def __init__(self, api_service, title, id=None, description="", tags=None, privacy='public'):
+        if tags is None:
+            tags = []
         self.id = id
         self.title = title
         self.description = description
