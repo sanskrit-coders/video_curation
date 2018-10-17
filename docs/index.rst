@@ -1,1 +1,1 @@
-.. include:: audio_curation.rst
+.. include:: video_curation.rst

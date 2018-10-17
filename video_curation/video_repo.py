@@ -15,7 +15,7 @@ logging.basicConfig(
 
 class VideoRepo(object):
     """ An Video file repository.
-    The local repository, by default, is assumed to be a collection of git repository working directories (self.git_repo_paths) with two subfolders:
+    The local repository, by default, is assumed to be a collection of working directories (self.repo_paths) with two subfolders:
         - mp4: Containing mp4-s for every "episode" in the repository. 
     """
 

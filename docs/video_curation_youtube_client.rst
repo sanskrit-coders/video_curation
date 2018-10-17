@@ -1,7 +1,7 @@
-audio_curation.mp3_utility
+video_curation.youtube_client
 ========================================
 
-.. automodule:: audio_curation.mp3_utility
+.. automodule:: video_curation.youtube_client
 	:members:
 	:undoc-members:
 		:show-inheritance:

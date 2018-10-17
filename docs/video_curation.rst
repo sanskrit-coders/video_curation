@@ -1,7 +1,7 @@
-audio_curation's documentation
+video_curation's documentation
 =========================================
 
-.. automodule:: audio_curation
+.. automodule:: video_curation
 	:members:
 	:undoc-members:
 	:show-inheritance:
@@ -12,10 +12,9 @@ Submodules
 .. toctree::
 	:maxdepth: 5
 
-	audio_curation_archive_utility
-	audio_curation_mp3_utility
-	audio_curation_audio_repo
-	audio_curation_episode_data
+	video_curation_video_repo
+	video_curation_youtube_client
+	video_curation_google_api_helper
 
 
 Indices and tables
