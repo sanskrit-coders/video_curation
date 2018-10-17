@@ -1,0 +1,228 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>video_curation.google_api_helper &#8212; video_curation 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for video_curation.google_api_helper</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Functions to help deal with google_api.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="c1"># google.oauth2 package is completely different from oauth2client</span>
+<span class="kn">from</span> <span class="nn">google.oauth2</span> <span class="k">import</span> <span class="n">service_account</span>
+<span class="kn">from</span> <span class="nn">google.oauth2.credentials</span> <span class="k">import</span> <span class="n">Credentials</span>
+<span class="kn">from</span> <span class="nn">google_auth_oauthlib.flow</span> <span class="k">import</span> <span class="n">InstalledAppFlow</span>
+
+
+<div class="viewcode-block" id="perform_oauth"><a class="viewcode-back" href="../../video_curation_google_api_helper.html#video_curation.google_api_helper.perform_oauth">[docs]</a><span class="k">def</span> <span class="nf">perform_oauth</span><span class="p">(</span><span class="n">client_secrets_file</span><span class="p">,</span> <span class="n">scopes</span><span class="p">,</span> <span class="n">token_file_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Do interactive oauth.&quot;&quot;&quot;</span>
+    <span class="n">flow</span> <span class="o">=</span> <span class="n">InstalledAppFlow</span><span class="o">.</span><span class="n">from_client_secrets_file</span><span class="p">(</span><span class="n">client_secrets_file</span><span class="p">,</span> <span class="n">scopes</span><span class="p">)</span>
+    <span class="n">credentials</span> <span class="o">=</span> <span class="n">flow</span><span class="o">.</span><span class="n">run_console</span><span class="p">()</span>
+    <span class="n">creds_data</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;access_token&#39;</span><span class="p">:</span> <span class="n">credentials</span><span class="o">.</span><span class="n">token</span><span class="p">,</span>
+        <span class="s1">&#39;refresh_token&#39;</span><span class="p">:</span> <span class="n">credentials</span><span class="o">.</span><span class="n">refresh_token</span><span class="p">,</span>
+        <span class="s1">&#39;token_uri&#39;</span><span class="p">:</span> <span class="n">credentials</span><span class="o">.</span><span class="n">token_uri</span><span class="p">,</span>
+        <span class="s1">&#39;client_id&#39;</span><span class="p">:</span> <span class="n">credentials</span><span class="o">.</span><span class="n">client_id</span><span class="p">,</span>
+        <span class="s1">&#39;client_secret&#39;</span><span class="p">:</span> <span class="n">credentials</span><span class="o">.</span><span class="n">client_secret</span><span class="p">,</span>
+        <span class="s1">&#39;scopes&#39;</span><span class="p">:</span> <span class="n">credentials</span><span class="o">.</span><span class="n">scopes</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">token_file_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">token_file_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">creds_data</span><span class="p">,</span> <span class="n">outfile</span><span class="p">)</span></div>
+        <span class="c1"># storage.put(credentials=credentials) fails with &#39;Credentials&#39; object has no attribute &#39;to_json&#39;. That&#39;s because google.oauth2 package is completely different from oauth2client</span>
+
+
+<div class="viewcode-block" id="get_service_from_token_file_path"><a class="viewcode-back" href="../../video_curation_google_api_helper.html#video_curation.google_api_helper.get_service_from_token_file_path">[docs]</a><span class="k">def</span> <span class="nf">get_service_from_token_file_path</span><span class="p">(</span><span class="n">token_file_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Authenticate and get api service object.</span>
+<span class="sd">    </span>
+<span class="sd">    :param token_file_path: A json file containing an access token (from a prior successful oauth). </span>
+<span class="sd">    :return: </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">credentials</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">token_file_path</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">token_file_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">creds_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="n">credentials</span> <span class="o">=</span> <span class="n">Credentials</span><span class="p">(</span><span class="s1">&#39;access_token&#39;</span><span class="p">,</span>
+                                      <span class="n">refresh_token</span><span class="o">=</span><span class="n">creds_data</span><span class="p">[</span><span class="s1">&#39;refresh_token&#39;</span><span class="p">],</span>
+                                      <span class="n">token_uri</span><span class="o">=</span><span class="n">creds_data</span><span class="p">[</span><span class="s1">&#39;token_uri&#39;</span><span class="p">],</span>
+                                      <span class="n">client_id</span><span class="o">=</span><span class="n">creds_data</span><span class="p">[</span><span class="s1">&#39;client_id&#39;</span><span class="p">],</span>
+                                      <span class="n">client_secret</span><span class="o">=</span><span class="n">creds_data</span><span class="p">[</span><span class="s1">&#39;client_secret&#39;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">credentials</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;could not retrieve oauth credentials from &#39;</span><span class="si">%r</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">token_file_path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">credentials</span> </div>
+
+
+<div class="viewcode-block" id="get_credentials"><a class="viewcode-back" href="../../video_curation_google_api_helper.html#video_curation.google_api_helper.get_credentials">[docs]</a><span class="k">def</span> <span class="nf">get_credentials</span><span class="p">(</span><span class="n">service_account_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">token_file_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">client_secrets_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    </span>
+<span class="sd">    Note: Passing service_account_file does not seem to work as intended.</span>
+<span class="sd">    :param service_account_file: </span>
+<span class="sd">    :param token_file_path:  A json file containing an access token (from a prior successful oauth).</span>
+<span class="sd">    :param client_secrets_file: </span>
+<span class="sd">    :param scopes: </span>
+<span class="sd">    :return: </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">credentials</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">service_account_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">service_account_file</span><span class="p">):</span>
+        <span class="n">unscoped_credentials</span> <span class="o">=</span> <span class="n">service_account</span><span class="o">.</span><span class="n">Credentials</span><span class="o">.</span><span class="n">from_service_account_file</span><span class="p">(</span><span class="n">service_account_file</span><span class="p">)</span>
+        <span class="n">credentials</span> <span class="o">=</span> <span class="n">unscoped_credentials</span><span class="o">.</span><span class="n">with_scopes</span><span class="p">(</span><span class="n">scopes</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Access Token file is the result of oauth. If it exists, we might avoid having to do another oauth. </span>
+        <span class="k">if</span> <span class="n">token_file_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">credentials</span> <span class="o">=</span> <span class="n">get_service_from_token_file_path</span><span class="p">(</span><span class="n">token_file_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">credentials</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">client_secrets_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">scopes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> 
+            <span class="k">if</span> <span class="n">perform_oauth</span><span class="p">(</span><span class="n">scopes</span><span class="o">=</span><span class="n">scopes</span><span class="p">,</span> <span class="n">token_file_path</span><span class="o">=</span><span class="n">token_file_path</span><span class="p">,</span> <span class="n">client_secrets_file</span><span class="o">=</span><span class="n">client_secrets_file</span><span class="p">):</span>
+                <span class="n">credentials</span> <span class="o">=</span> <span class="n">get_service_from_token_file_path</span><span class="p">(</span><span class="n">token_file_path</span><span class="p">)</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Logged in successfully with oauth.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Login failure!&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">credentials</span></div>
+
+
+<div class="viewcode-block" id="get_api_request_dict"><a class="viewcode-back" href="../../video_curation_google_api_helper.html#video_curation.google_api_helper.get_api_request_dict">[docs]</a><span class="k">def</span> <span class="nf">get_api_request_dict</span><span class="p">(</span><span class="n">properties</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Build a resource based on a list of properties given as key-value pairs. Leave properties with empty values out of the inserted resource.</span>
+<span class="sd">    </span>
+<span class="sd">    :param properties: a dict</span>
+<span class="sd">    :return: </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">resource</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+        <span class="c1"># Given a key like &quot;snippet.title&quot;, split into &quot;snippet&quot; and &quot;title&quot;, where</span>
+        <span class="c1"># &quot;snippet&quot; will be an object and &quot;title&quot; will be a property in that object.</span>
+        <span class="n">prop_array</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+        <span class="n">ref</span> <span class="o">=</span> <span class="n">resource</span>
+        <span class="k">for</span> <span class="n">pa</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">prop_array</span><span class="p">)):</span>
+            <span class="n">is_array</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="n">prop_array</span><span class="p">[</span><span class="n">pa</span><span class="p">]</span>
+
+            <span class="c1"># For properties that have array values, convert a name like</span>
+            <span class="c1"># &quot;snippet.tags[]&quot; to snippet.tags, and set a flag to handle</span>
+            <span class="c1"># the value as an array.</span>
+            <span class="k">if</span> <span class="n">key</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span> <span class="o">==</span> <span class="s1">&#39;[]&#39;</span><span class="p">:</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+                <span class="n">is_array</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">if</span> <span class="n">pa</span> <span class="o">==</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">prop_array</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="c1"># Leave properties without values out of inserted resource.</span>
+                <span class="k">if</span> <span class="n">properties</span><span class="p">[</span><span class="n">p</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">is_array</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">properties</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                            <span class="n">ref</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">properties</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">ref</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">properties</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">ref</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">properties</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ref</span><span class="p">:</span>
+                <span class="c1"># For example, the property is &quot;snippet.title&quot;, but the resource does</span>
+                <span class="c1"># not yet have a &quot;snippet&quot; object. Create the snippet object here.</span>
+                <span class="c1"># Setting &quot;ref = ref[key]&quot; means that in the next time through the</span>
+                <span class="c1"># &quot;for pa in range ...&quot; loop, we will be setting a property in the</span>
+                <span class="c1"># resource&#39;s &quot;snippet&quot; object.</span>
+                <span class="n">ref</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">ref</span> <span class="o">=</span> <span class="n">ref</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># For example, the property is &quot;snippet.description&quot;, and the resource</span>
+                <span class="c1"># already has a &quot;snippet&quot; object.</span>
+                <span class="n">ref</span> <span class="o">=</span> <span class="n">ref</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">resource</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../video_curation.html">video_curation</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../video_curation_video_repo.html">video_curation.video_repo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../video_curation_youtube_client.html">video_curation.youtube_client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../video_curation_google_api_helper.html">video_curation.google_api_helper</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../video_curation.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, sanskrit-programmers.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

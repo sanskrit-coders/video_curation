@@ -1,0 +1,161 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>video_curation.google_api_helper &#8212; video_curation 0.0.2 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="video_curation.youtube_client" href="video_curation_youtube_client.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-video_curation.google_api_helper">
+<span id="video-curation-google-api-helper"></span><h1>video_curation.google_api_helper<a class="headerlink" href="#module-video_curation.google_api_helper" title="Permalink to this headline">¶</a></h1>
+<p>Functions to help deal with google_api.</p>
+<dl class="function">
+<dt id="video_curation.google_api_helper.get_api_request_dict">
+<code class="descclassname">video_curation.google_api_helper.</code><code class="descname">get_api_request_dict</code><span class="sig-paren">(</span><em>properties</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/video_curation/google_api_helper.html#get_api_request_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#video_curation.google_api_helper.get_api_request_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build a resource based on a list of properties given as key-value pairs. Leave properties with empty values out of the inserted resource.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>properties</strong> – a dict</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="video_curation.google_api_helper.get_credentials">
+<code class="descclassname">video_curation.google_api_helper.</code><code class="descname">get_credentials</code><span class="sig-paren">(</span><em>service_account_file=None</em>, <em>token_file_path=None</em>, <em>client_secrets_file=None</em>, <em>scopes=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/video_curation/google_api_helper.html#get_credentials"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#video_curation.google_api_helper.get_credentials" title="Permalink to this definition">¶</a></dt>
+<dd><p>Note: Passing service_account_file does not seem to work as intended.
+:param service_account_file: 
+:param token_file_path:  A json file containing an access token (from a prior successful oauth).
+:param client_secrets_file: 
+:param scopes: 
+:return:</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="video_curation.google_api_helper.get_service_from_token_file_path">
+<code class="descclassname">video_curation.google_api_helper.</code><code class="descname">get_service_from_token_file_path</code><span class="sig-paren">(</span><em>token_file_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/video_curation/google_api_helper.html#get_service_from_token_file_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#video_curation.google_api_helper.get_service_from_token_file_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Authenticate and get api service object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>token_file_path</strong> – A json file containing an access token (from a prior successful oauth).</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="video_curation.google_api_helper.perform_oauth">
+<code class="descclassname">video_curation.google_api_helper.</code><code class="descname">perform_oauth</code><span class="sig-paren">(</span><em>client_secrets_file</em>, <em>scopes</em>, <em>token_file_path=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/video_curation/google_api_helper.html#perform_oauth"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#video_curation.google_api_helper.perform_oauth" title="Permalink to this definition">¶</a></dt>
+<dd><p>Do interactive oauth.</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="video_curation.html">video_curation</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="video_curation_video_repo.html">video_curation.video_repo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="video_curation_youtube_client.html">video_curation.youtube_client</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">video_curation.google_api_helper</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="video_curation.html">Documentation overview</a><ul>
+      <li>Previous: <a href="video_curation_youtube_client.html" title="previous chapter">video_curation.youtube_client</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, sanskrit-programmers.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/video_curation_google_api_helper.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

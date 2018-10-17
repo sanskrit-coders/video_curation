@@ -1,0 +1,472 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>video_curation.youtube_client &#8212; video_curation 0.0.2 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for video_curation.youtube_client</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;A wrapper around Youtube API.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">http.client</span> <span class="k">as</span> <span class="nn">httplib</span>
+<span class="kn">import</span> <span class="nn">random</span>
+
+<span class="kn">import</span> <span class="nn">httplib2</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">googleapiclient.discovery</span> <span class="k">import</span> <span class="n">build</span>
+<span class="kn">from</span> <span class="nn">googleapiclient.errors</span> <span class="k">import</span> <span class="n">HttpError</span>
+<span class="kn">from</span> <span class="nn">googleapiclient.http</span> <span class="k">import</span> <span class="n">MediaFileUpload</span>
+
+<span class="kn">from</span> <span class="nn">video_curation</span> <span class="k">import</span> <span class="n">google_api_helper</span>
+<span class="kn">from</span> <span class="nn">video_curation.google_api_helper</span> <span class="k">import</span> <span class="n">get_api_request_dict</span>
+
+
+<div class="viewcode-block" id="YtVideo"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.YtVideo">[docs]</a><span class="k">class</span> <span class="nc">YtVideo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents a YouTube video.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">category_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">api_service</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">privacy</span><span class="o">=</span><span class="s1">&#39;public&#39;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="nb">id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="n">title</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="n">description</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tags</span> <span class="o">=</span> <span class="n">tags</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">privacy</span> <span class="o">=</span> <span class="n">privacy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">category_id</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span> <span class="o">=</span> <span class="n">api_service</span>
+
+<div class="viewcode-block" id="YtVideo.from_playlist_item_metadata"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.YtVideo.from_playlist_item_metadata">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_playlist_item_metadata</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">yt_metadata</span><span class="p">,</span> <span class="n">api_service</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create and return a YTVideo object&quot;&quot;&quot;</span>
+        <span class="nb">id</span> <span class="o">=</span> <span class="n">yt_metadata</span><span class="p">[</span><span class="s1">&#39;snippet&#39;</span><span class="p">][</span><span class="s1">&#39;resourceId&#39;</span><span class="p">][</span><span class="s1">&#39;videoId&#39;</span><span class="p">]</span>
+        <span class="n">title</span> <span class="o">=</span> <span class="n">yt_metadata</span><span class="p">[</span><span class="s1">&#39;snippet&#39;</span><span class="p">][</span><span class="s1">&#39;title&#39;</span><span class="p">]</span>
+        <span class="n">description</span> <span class="o">=</span> <span class="n">yt_metadata</span><span class="p">[</span><span class="s1">&#39;snippet&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">tags</span> <span class="o">=</span> <span class="n">yt_metadata</span><span class="p">[</span><span class="s1">&#39;snippet&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tags&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">category_id</span> <span class="o">=</span> <span class="n">yt_metadata</span><span class="p">[</span><span class="s1">&#39;snippet&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;categoryId&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">api_service</span> <span class="o">=</span> <span class="n">api_service</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="n">YtVideo</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="n">tags</span><span class="p">,</span> <span class="n">category_id</span><span class="o">=</span><span class="n">category_id</span><span class="p">,</span> <span class="n">api_service</span><span class="o">=</span><span class="n">api_service</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">yt_metadata</span> <span class="o">=</span> <span class="n">yt_metadata</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;id:</span><span class="si">%s</span><span class="s2"> title:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compare two YtVideo objects&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">title</span>
+
+<div class="viewcode-block" id="YtVideo.initialize_upload"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.YtVideo.initialize_upload">[docs]</a>    <span class="k">def</span> <span class="nf">initialize_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Upload a new video to YouTube!</span>
+<span class="sd">        </span>
+<span class="sd">        :param filepath: </span>
+<span class="sd">        :return: </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">body</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+            <span class="n">snippet</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">title</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+                <span class="n">description</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+                <span class="n">tags</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tags</span>
+            <span class="p">),</span>
+            <span class="n">status</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">privacyStatus</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">privacy</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    
+        <span class="c1"># Call the API&#39;s videos.insert method to create and upload the video.</span>
+        <span class="n">insert_request</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">videos</span><span class="p">()</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
+            <span class="n">part</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
+            <span class="n">body</span><span class="o">=</span><span class="n">body</span><span class="p">,</span>
+            <span class="c1"># The chunksize parameter specifies the size of each chunk of data, in</span>
+            <span class="c1"># bytes, that will be uploaded at a time. Set a higher value for</span>
+            <span class="c1"># reliable connections as fewer chunks lead to faster uploads. Set a lower</span>
+            <span class="c1"># value for better recovery on less reliable connections.</span>
+            <span class="c1">#</span>
+            <span class="c1"># Setting &quot;chunksize&quot; equal to -1 in the code below means that the entire</span>
+            <span class="c1"># file will be uploaded in a single HTTP request. (If the upload fails,</span>
+            <span class="c1"># it will still be retried where it left off.) This is usually a best</span>
+            <span class="c1"># practice, but if you&#39;re using Python older than 2.6 or if you&#39;re</span>
+            <span class="c1"># running on App Engine, you should set the chunksize to something like</span>
+            <span class="c1"># 1024 * 1024 (1 megabyte).</span>
+            <span class="n">media_body</span><span class="o">=</span><span class="n">MediaFileUpload</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">resumable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uploading </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">_resumable_upload</span><span class="p">(</span><span class="n">insert_request</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uploaded </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="YtVideo.sync_metadata_to_youtube"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.YtVideo.sync_metadata_to_youtube">[docs]</a>    <span class="k">def</span> <span class="nf">sync_metadata_to_youtube</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set title etc in YouTube.</span>
+<span class="sd">        </span>
+<span class="sd">        :return: </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">properties</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                      <span class="s1">&#39;snippet.title&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+                      <span class="s1">&#39;snippet.description&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+                      <span class="s1">&#39;snippet.tags[]&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tags</span><span class="p">,</span>
+                      <span class="s1">&#39;snippet.categoryId&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">category_id</span>
+                      <span class="p">}</span>
+        <span class="n">resource</span> <span class="o">=</span> <span class="n">get_api_request_dict</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">videos</span><span class="p">()</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="n">body</span><span class="o">=</span><span class="n">resource</span><span class="p">,</span>
+            <span class="n">part</span><span class="o">=</span><span class="s1">&#39;snippet&#39;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">response</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="YtVideo.set_youtube_privacy"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.YtVideo.set_youtube_privacy">[docs]</a>    <span class="k">def</span> <span class="nf">set_youtube_privacy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update YouTube privacy setting for this video.&quot;&quot;&quot;</span>
+        <span class="n">properties</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                      <span class="s1">&#39;status.privacyStatus&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">privacy</span><span class="p">,</span>
+                      <span class="p">}</span>
+        <span class="n">resource</span> <span class="o">=</span> <span class="n">get_api_request_dict</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">videos</span><span class="p">()</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="n">body</span><span class="o">=</span><span class="n">resource</span><span class="p">,</span>
+            <span class="n">part</span><span class="o">=</span><span class="s1">&#39;status&#39;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">response</span><span class="p">)</span></div></div>
+        
+
+<div class="viewcode-block" id="Playlist"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Playlist">[docs]</a><span class="k">class</span> <span class="nc">Playlist</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents a YouTube playlist.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">api_service</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="p">[],</span> <span class="n">privacy</span><span class="o">=</span><span class="s1">&#39;public&#39;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="nb">id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="n">title</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="n">description</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tags</span> <span class="o">=</span> <span class="n">tags</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">privacy</span> <span class="o">=</span> <span class="n">privacy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span> <span class="o">=</span> <span class="n">api_service</span>
+
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;id:</span><span class="si">%s</span><span class="s2"> title:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">title</span>
+
+    <span class="c1"># https://developers.google.com/youtube/v3/docs/playlistItems#resource</span>
+<div class="viewcode-block" id="Playlist.add_video"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Playlist.add_video">[docs]</a>    <span class="k">def</span> <span class="nf">add_video</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">video_id</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Insert a video into this playlist. Update YouTube as well.&quot;&quot;&quot;</span>
+        <span class="n">properties</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;snippet.playlistId&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                      <span class="s1">&#39;snippet.resourceId.kind&#39;</span><span class="p">:</span> <span class="s1">&#39;youtube#video&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;snippet.resourceId.videoId&#39;</span><span class="p">:</span> <span class="n">video_id</span><span class="p">,</span>
+                      <span class="s1">&#39;snippet.position&#39;</span><span class="p">:</span> <span class="n">position</span><span class="p">}</span>
+        <span class="n">resource</span> <span class="o">=</span> <span class="n">get_api_request_dict</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">playlistItems</span><span class="p">()</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
+            <span class="n">body</span><span class="o">=</span><span class="n">resource</span><span class="p">,</span>
+            <span class="n">part</span><span class="o">=</span><span class="s1">&#39;snippet&#39;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">response</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Playlist.add_videos"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Playlist.add_videos">[docs]</a>    <span class="k">def</span> <span class="nf">add_videos</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">video_ids</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add multiple videos to this playlist. Update YouTube as well.&quot;&quot;&quot;</span>
+        <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">add_video</span><span class="p">(</span><span class="n">video_id</span><span class="o">=</span><span class="n">video_id</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="n">position</span><span class="p">)</span> <span class="k">for</span> <span class="n">position</span><span class="p">,</span> <span class="n">video_id</span> <span class="ow">in</span> <span class="n">video_ids</span><span class="p">]</span></div>
+
+    <span class="c1"># https://developers.google.com/youtube/v3/docs/playlistItems#resource</span>
+<div class="viewcode-block" id="Playlist.delete_video"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Playlist.delete_video">[docs]</a>    <span class="k">def</span> <span class="nf">delete_video</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">video_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete some video from this playlist. Update YouTube as well.&quot;&quot;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">playlistItems</span><span class="p">()</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="n">video_id</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">response</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Playlist.get_playlist_videos"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Playlist.get_playlist_videos">[docs]</a>    <span class="k">def</span> <span class="nf">get_playlist_videos</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        </span>
+<span class="sd">        :return: A list of :py:class:YtVideo objects. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Retrieve the list of videos uploaded to the authenticated user&#39;s channel.</span>
+        <span class="n">playlistitems_list_request</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">playlistItems</span><span class="p">()</span><span class="o">.</span><span class="n">list</span><span class="p">(</span>
+            <span class="n">playlistId</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="n">part</span><span class="o">=</span><span class="s1">&#39;snippet&#39;</span><span class="p">,</span>
+            <span class="n">maxResults</span><span class="o">=</span><span class="mi">50</span>
+        <span class="p">)</span>
+
+        <span class="n">playlist_items</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">while</span> <span class="n">playlistitems_list_request</span><span class="p">:</span>
+            <span class="n">playlistitems_list_response</span> <span class="o">=</span> <span class="n">playlistitems_list_request</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+            <span class="c1"># Print information about each video.</span>
+            <span class="n">playlist_items</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+                <span class="n">YtVideo</span><span class="o">.</span><span class="n">from_playlist_item_metadata</span><span class="p">(</span><span class="n">yt_metadata</span><span class="o">=</span><span class="n">playlist_item</span><span class="p">,</span> <span class="n">api_service</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">playlist_item</span> <span class="ow">in</span> <span class="n">playlistitems_list_response</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]</span>
+            <span class="p">])</span>
+
+            <span class="n">playlistitems_list_request</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">playlistItems</span><span class="p">()</span><span class="o">.</span><span class="n">list_next</span><span class="p">(</span>
+                <span class="n">playlistitems_list_request</span><span class="p">,</span> <span class="n">playlistitems_list_response</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">playlist_items</span></div>
+
+<div class="viewcode-block" id="Playlist.sync_metadata_to_youtube"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Playlist.sync_metadata_to_youtube">[docs]</a>    <span class="k">def</span> <span class="nf">sync_metadata_to_youtube</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set metadata info in YouTube.&quot;&quot;&quot;</span>
+        <span class="n">properties</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                      <span class="s1">&#39;snippet.title&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+                      <span class="s1">&#39;snippet.description&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+                      <span class="s1">&#39;snippet.tags[]&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tags</span>
+                      <span class="p">}</span>
+        <span class="n">resource</span> <span class="o">=</span> <span class="n">get_api_request_dict</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">playlists</span><span class="p">()</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="n">body</span><span class="o">=</span><span class="n">resource</span><span class="p">,</span>
+            <span class="n">part</span><span class="o">=</span><span class="s1">&#39;snippet&#39;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">response</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Playlist.add_to_youtube"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Playlist.add_to_youtube">[docs]</a>    <span class="k">def</span> <span class="nf">add_to_youtube</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add a new playlist at YouTube.&quot;&quot;&quot;</span>
+        <span class="n">body</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">snippet</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">title</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+                <span class="n">description</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+                <span class="n">tags</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tags</span>
+            <span class="p">),</span>
+            <span class="n">status</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">privacyStatus</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">privacy</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">playlists_insert_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">playlists</span><span class="p">()</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
+            <span class="n">part</span><span class="o">=</span><span class="s1">&#39;snippet,status&#39;</span><span class="p">,</span>
+            <span class="n">body</span><span class="o">=</span><span class="n">body</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">playlists_insert_response</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;New playlist ID: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Playlist.from_metadata"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Playlist.from_metadata">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_metadata</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">yt_metadata</span><span class="p">,</span> <span class="n">api_service</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Construct a :py:class:Playlist object from YouTube metadata.&quot;&quot;&quot;</span>
+        <span class="nb">id</span> <span class="o">=</span> <span class="n">yt_metadata</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+        <span class="n">title</span> <span class="o">=</span> <span class="n">yt_metadata</span><span class="p">[</span><span class="s1">&#39;snippet&#39;</span><span class="p">][</span><span class="s1">&#39;title&#39;</span><span class="p">]</span>
+        <span class="n">description</span> <span class="o">=</span> <span class="n">yt_metadata</span><span class="p">[</span><span class="s1">&#39;snippet&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">tags</span> <span class="o">=</span> <span class="n">yt_metadata</span><span class="p">[</span><span class="s1">&#39;snippet&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tags&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">category_id</span> <span class="o">=</span> <span class="n">yt_metadata</span><span class="p">[</span><span class="s1">&#39;snippet&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;categoryId&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">api_service</span> <span class="o">=</span> <span class="n">api_service</span>
+        <span class="n">privacy</span> <span class="o">=</span> <span class="s1">&#39;public&#39;</span>
+        <span class="k">if</span> <span class="s1">&#39;status&#39;</span> <span class="ow">in</span> <span class="n">yt_metadata</span><span class="p">:</span>
+            <span class="n">privacy</span> <span class="o">=</span> <span class="n">yt_metadata</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;privacy&#39;</span><span class="p">,</span> <span class="s2">&quot;public&quot;</span><span class="p">)</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="n">Playlist</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="nb">id</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="n">tags</span><span class="p">,</span> <span class="n">privacy</span><span class="o">=</span><span class="n">privacy</span><span class="p">,</span> <span class="n">api_service</span><span class="o">=</span><span class="n">api_service</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">yt_metadata</span> <span class="o">=</span> <span class="n">yt_metadata</span>
+        <span class="k">return</span> <span class="bp">self</span></div></div>
+
+
+<div class="viewcode-block" id="Channel"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Channel">[docs]</a><span class="k">class</span> <span class="nc">Channel</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents a YouTube channel.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service_account_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">token_file_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">client_secret_file</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        </span>
+<span class="sd">        Note: Passing service_account_file does not seem to work as intended.</span>
+<span class="sd">        :param service_account_file:      </span>
+<span class="sd">        :param token_file_path: </span>
+<span class="sd">        :param client_secret_file: </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_authenticated_service</span><span class="p">(</span><span class="n">service_account_file</span><span class="o">=</span><span class="n">service_account_file</span><span class="p">,</span> <span class="n">token_file_path</span><span class="o">=</span><span class="n">token_file_path</span><span class="p">,</span> <span class="n">client_secret_file</span><span class="o">=</span><span class="n">client_secret_file</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uploads_playlist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_uploads_playlist</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uploaded_vids</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">playlists</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="Channel.set_uploaded_videos"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Channel.set_uploaded_videos">[docs]</a>    <span class="k">def</span> <span class="nf">set_uploaded_videos</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set self.uploaded_vids.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uploaded_vids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">uploads_playlist</span><span class="o">.</span><span class="n">get_playlist_videos</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_set_authenticated_service</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service_account_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">token_file_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">client_secret_file</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set self.api_service, via which all communication with YouTube happens.</span>
+<span class="sd">        </span>
+<span class="sd">        Note: Passing service_account_file does not seem to work as intended.</span>
+<span class="sd">        :param service_account_file:      </span>
+<span class="sd">        :param token_file_path: </span>
+<span class="sd">        :param client_secret_file: </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">scopes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;https://www.googleapis.com/auth/youtube&#39;</span><span class="p">]</span>
+        <span class="n">api_service_name</span> <span class="o">=</span> <span class="s1">&#39;youtube&#39;</span>
+        <span class="n">api_version</span> <span class="o">=</span> <span class="s1">&#39;v3&#39;</span>
+        <span class="n">credentials</span> <span class="o">=</span> <span class="n">google_api_helper</span><span class="o">.</span><span class="n">get_credentials</span><span class="p">(</span><span class="n">service_account_file</span><span class="o">=</span><span class="n">service_account_file</span><span class="p">,</span> <span class="n">token_file_path</span><span class="o">=</span><span class="n">token_file_path</span><span class="p">,</span> <span class="n">client_secrets_file</span><span class="o">=</span><span class="n">client_secret_file</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="n">scopes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="n">serviceName</span><span class="o">=</span><span class="n">api_service_name</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">api_version</span><span class="p">,</span> <span class="n">credentials</span><span class="o">=</span><span class="n">credentials</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Done authenticating.&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Channel.set_playlists"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Channel.set_playlists">[docs]</a>    <span class="k">def</span> <span class="nf">set_playlists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set self.playlists.&quot;&quot;&quot;</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">playlists</span><span class="p">()</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">mine</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                          <span class="n">part</span><span class="o">=</span><span class="s1">&#39;snippet, status&#39;</span><span class="p">,</span>
+                                          <span class="n">maxResults</span><span class="o">=</span><span class="mi">50</span>
+                                          <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">playlists</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">while</span> <span class="n">request</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+            <span class="c1"># Print information about each video.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">playlists</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+                <span class="n">Playlist</span><span class="o">.</span><span class="n">from_metadata</span><span class="p">(</span><span class="n">yt_metadata</span><span class="o">=</span><span class="n">playlist</span><span class="p">,</span> <span class="n">api_service</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">playlist</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]</span>
+            <span class="p">])</span>
+
+            <span class="n">request</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">playlists</span><span class="p">()</span><span class="o">.</span><span class="n">list_next</span><span class="p">(</span>
+                <span class="n">request</span><span class="p">,</span> <span class="n">response</span><span class="p">)</span></div>
+        
+
+<div class="viewcode-block" id="Channel.get_uploads_playlist"><a class="viewcode-back" href="../../video_curation_youtube_client.html#video_curation.youtube_client.Channel.get_uploads_playlist">[docs]</a>    <span class="k">def</span> <span class="nf">get_uploads_playlist</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the uploads playlist for this channel.&quot;&quot;&quot;</span>
+
+        <span class="c1"># Retrieve the contentDetails part of the channel resource for the</span>
+        <span class="c1"># authenticated user&#39;s channel.</span>
+        <span class="n">channels_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="o">.</span><span class="n">channels</span><span class="p">()</span><span class="o">.</span><span class="n">list</span><span class="p">(</span>
+            <span class="n">mine</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">part</span><span class="o">=</span><span class="s1">&#39;contentDetails&#39;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+    
+        <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="n">channels_response</span><span class="p">[</span><span class="s1">&#39;items&#39;</span><span class="p">]:</span>
+            <span class="c1"># From the API response, extract the playlist ID that identifies the list</span>
+            <span class="c1"># of videos uploaded to the authenticated user&#39;s channel.</span>
+            <span class="k">return</span> <span class="n">Playlist</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="n">channel</span><span class="p">[</span><span class="s1">&#39;contentDetails&#39;</span><span class="p">][</span><span class="s1">&#39;relatedPlaylists&#39;</span><span class="p">][</span><span class="s1">&#39;uploads&#39;</span><span class="p">],</span> <span class="n">api_service</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">api_service</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Uploads&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="p">[])</span>
+        <span class="k">return</span> <span class="kc">None</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">_resumable_upload</span><span class="p">(</span><span class="n">insert_request</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; This method implements an exponential backoff strategy to resume a failed upload. Called from :py:class:YtVideo.</span>
+<span class="sd">    </span>
+<span class="sd">    :param insert_request: </span>
+<span class="sd">    :return: </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Explicitly tell the underlying HTTP transport library not to retry, since</span>
+    <span class="c1"># we are handling retry logic ourselves.</span>
+    <span class="n">httplib2</span><span class="o">.</span><span class="n">RETRIES</span> <span class="o">=</span> <span class="mi">1</span>
+    
+    <span class="c1"># Maximum number of times to retry before giving up.</span>
+    <span class="n">MAX_RETRIES</span> <span class="o">=</span> <span class="mi">10</span>
+    
+    <span class="c1"># Always retry when these exceptions are raised.</span>
+    <span class="n">RETRIABLE_EXCEPTIONS</span> <span class="o">=</span> <span class="p">(</span><span class="n">httplib2</span><span class="o">.</span><span class="n">HttpLib2Error</span><span class="p">,</span> <span class="ne">IOError</span><span class="p">,</span> <span class="n">httplib</span><span class="o">.</span><span class="n">NotConnected</span><span class="p">,</span>
+                            <span class="n">httplib</span><span class="o">.</span><span class="n">IncompleteRead</span><span class="p">,</span> <span class="n">httplib</span><span class="o">.</span><span class="n">ImproperConnectionState</span><span class="p">,</span>
+                            <span class="n">httplib</span><span class="o">.</span><span class="n">CannotSendRequest</span><span class="p">,</span> <span class="n">httplib</span><span class="o">.</span><span class="n">CannotSendHeader</span><span class="p">,</span>
+                            <span class="n">httplib</span><span class="o">.</span><span class="n">ResponseNotReady</span><span class="p">,</span> <span class="n">httplib</span><span class="o">.</span><span class="n">BadStatusLine</span><span class="p">)</span>
+
+    <span class="c1"># Always retry when an apiclient.errors.HttpError with one of these status</span>
+    <span class="c1"># codes is raised.</span>
+    <span class="n">RETRIABLE_STATUS_CODES</span> <span class="o">=</span> <span class="p">[</span><span class="mi">500</span><span class="p">,</span> <span class="mi">502</span><span class="p">,</span> <span class="mi">503</span><span class="p">,</span> <span class="mi">504</span><span class="p">]</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">error</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">retry</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">response</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uploading file...&quot;</span><span class="p">)</span>
+            <span class="n">status</span><span class="p">,</span> <span class="n">response</span> <span class="o">=</span> <span class="n">insert_request</span><span class="o">.</span><span class="n">next_chunk</span><span class="p">()</span>
+            <span class="k">if</span> <span class="s1">&#39;id&#39;</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Video id &#39;</span><span class="si">%s</span><span class="s2">&#39; was successfully uploaded.&quot;</span> <span class="o">%</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+                <span class="k">return</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">exit</span><span class="p">(</span><span class="s2">&quot;The upload failed with an unexpected response: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">response</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">HttpError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">resp</span><span class="o">.</span><span class="n">status</span> <span class="ow">in</span> <span class="n">RETRIABLE_STATUS_CODES</span><span class="p">:</span>
+                <span class="n">error</span> <span class="o">=</span> <span class="s2">&quot;A retriable HTTP error </span><span class="si">%d</span><span class="s2"> occurred:</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">resp</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+                                                                     <span class="n">e</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span>
+        <span class="k">except</span> <span class="n">RETRIABLE_EXCEPTIONS</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">error</span> <span class="o">=</span> <span class="s2">&quot;A retriable error occurred: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">e</span>
+
+        <span class="k">if</span> <span class="n">error</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+            <span class="n">retry</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">retry</span> <span class="o">&gt;</span> <span class="n">MAX_RETRIES</span><span class="p">:</span>
+                <span class="n">exit</span><span class="p">(</span><span class="s2">&quot;No longer attempting to retry.&quot;</span><span class="p">)</span>
+
+            <span class="n">max_sleep</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">retry</span>
+            <span class="n">sleep_seconds</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">*</span> <span class="n">max_sleep</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Sleeping </span><span class="si">%f</span><span class="s2"> seconds and then retrying...&quot;</span> <span class="o">%</span> <span class="n">sleep_seconds</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">sleep_seconds</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../video_curation.html">video_curation</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../video_curation_video_repo.html">video_curation.video_repo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../video_curation_youtube_client.html">video_curation.youtube_client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../video_curation_google_api_helper.html">video_curation.google_api_helper</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../video_curation.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, sanskrit-programmers.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
