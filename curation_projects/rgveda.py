@@ -1,5 +1,7 @@
 import logging
 
+import regex
+
 from video_curation import youtube_client, video_repo
 
 # Remove all handlers associated with the root logger object.
@@ -27,9 +29,10 @@ class RgvedaRepo(video_repo.VideoRepo):
     def upload_mandala_videos(self, mandala_id, yt_channel, dry_run=False):
         yt_mandala_videos = sorted(list(filter(lambda vid: "RIGSS %02d" % (mandala_id) in vid.title, yt_channel.uploaded_vids)))
         yt_mandala_video_titles = list(map(lambda video: video.title, yt_mandala_videos))
+        yt_mandala_video_ids =  list(map(lambda title: regex.search('(RIGSS .. ...)', title).group(1), yt_mandala_video_titles))
         logging.info("Got %d vids: %s ", len(yt_mandala_videos), yt_mandala_videos)
         local_mandala_videos_map = self.get_mandala_videos_map(mandala_id=mandala_id)
-        missing_mandala_video_titles = sorted(set(local_mandala_videos_map.keys()) - set(yt_mandala_video_titles))
+        missing_mandala_video_titles = sorted(set(local_mandala_videos_map.keys()) - set(yt_mandala_video_ids))
         logging.info("Missing videos: %s", missing_mandala_video_titles)
         for title in missing_mandala_video_titles:
             video = youtube_client.YtVideo(title=title, api_service=yt_channel.api_service, privacy='public', tags=video_tags)
@@ -70,10 +73,8 @@ class RgvedaRepo(video_repo.VideoRepo):
             playlist = youtube_client.Playlist(title=get_playlist_title(mandala_id=mandala_id_str), description=description, tags=video_tags, api_service=yt_channel.api_service, privacy='public')
             playlist.add_to_youtube()
 
-        for video in playlist.get_playlist_videos():
-            playlist.delete_video(video.id)
-        for video in yt_mandala_videos:
-            playlist.add_video(video_id=video.id, position=yt_mandala_videos.index(video))
+        playlist.video_ids = [video.id for video in yt_mandala_videos]
+        playlist.sync_items_to_youtube()
 
 if __name__ == "__main__":
     local_repo = RgvedaRepo(repo_paths=["/home/vvasuki/Videos/Rgveda/"]) 
@@ -82,10 +83,13 @@ if __name__ == "__main__":
     logging.info("Retrieving uploaded videos.")
     channel.set_uploaded_videos()
     channel.set_playlists()
+    # channel.delete_rejected_videos(dry_run=True)
+    # for mandala_id in range(1, 11):
+    #     local_repo.upload_mandala_videos(mandala_id=mandala_id, yt_channel=channel, dry_run=True)
     # local_repo.update_video_metadatas(channel)
     # local_repo.update_video_privacy(channel)
-    # for mandala_id in range(9, 11):
-    #     local_repo.set_mandala_videos_in_playlist(mandala_id=mandala_id, yt_channel=channel)
+    for mandala_id in range(9, 11):
+        local_repo.set_mandala_videos_in_playlist(mandala_id=mandala_id, yt_channel=channel)
     # logging.info(pprint.pformat(uploaded_vids))
 
     # archive_item = audio_curation.archive_utility.ArchiveItem(archive_id="shAkhala-rig-veda-kerala")
