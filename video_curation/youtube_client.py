@@ -163,7 +163,8 @@ class Playlist(object):
         self.video_ids = video_ids.copy()
         self.privacy = privacy
         self.api_service = api_service
-        self.sync_items_from_youtube()
+        if id is not None:
+            self.sync_items_from_youtube()
 
 
     def __repr__(self):
