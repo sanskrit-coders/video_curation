@@ -72,9 +72,10 @@ class RgvedaRepo(video_repo.VideoRepo):
         else:
             playlist = youtube_client.Playlist(title=get_playlist_title(mandala_id=mandala_id_str), description=description, tags=video_tags, api_service=yt_channel.api_service, privacy='public')
             playlist.add_to_youtube()
-
-        playlist.video_ids = [video.id for video in yt_mandala_videos]
-        playlist.sync_items_to_youtube()
+        video_ids = [video.id for video in yt_mandala_videos]
+        if playlist.video_ids != video_ids:
+            playlist.video_ids = video_ids
+            playlist.sync_items_to_youtube()
 
 if __name__ == "__main__":
     local_repo = RgvedaRepo(repo_paths=["/home/vvasuki/Videos/Rgveda/"]) 

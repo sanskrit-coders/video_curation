@@ -163,6 +163,7 @@ class Playlist(object):
         self.video_ids = video_ids.copy()
         self.privacy = privacy
         self.api_service = api_service
+        self.video_id_to_item_id = {}
         if id is not None:
             self.sync_items_from_youtube()
 
@@ -187,6 +188,7 @@ class Playlist(object):
         ).execute()
         logging.info(response)
         self.video_ids.insert(position, video_id)
+        self.video_id_to_item_id[response["id"]] = video_id
 
     def add_videos(self, video_ids):
         """Add multiple videos to this playlist. Update YouTube as well."""
@@ -195,10 +197,11 @@ class Playlist(object):
     # https://developers.google.com/youtube/v3/docs/playlistItems#resource
     def delete_video(self, video_id):
         """Delete some video from this playlist. Update YouTube as well."""
-        response = self.api_service.playlistItems().delete(id=video_id).execute()
-        logging.info(response)
-        while video_id in self.video_ids:
+        if video_id in self.video_id_to_item_id:
+            response = self.api_service.playlistItems().delete(id=self.video_id_to_item_id[video_id]).execute()
+            logging.info(response)
             self.video_ids.remove(video_id)
+            self.video_id_to_item_id.pop(video_id, None)
 
     def sync_items_from_youtube(self):
         """
@@ -210,19 +213,25 @@ class Playlist(object):
             maxResults=50
         )
         self.video_ids = []
+        self.video_id_to_item_id = {}
         while playlistitems_list_request:
             playlistitems_list_response = playlistitems_list_request.execute()
 
+            video_ids = [playlist_item['snippet']['resourceId']['videoId']
+                         for playlist_item in playlistitems_list_response['items']
+                         ]
+            item_ids = [playlist_item['id']
+                        for playlist_item in playlistitems_list_response['items']
+                        ]
             # Print information about each video.
-            self.video_ids.extend([playlist_item['snippet']['resourceId']['videoId']
-                for playlist_item in playlistitems_list_response['items']
-            ])
+            self.video_ids.extend(video_ids)
+            self.video_id_to_item_id.update(dict(zip(video_ids, item_ids)))
 
             playlistitems_list_request = self.api_service.playlistItems().list_next(
                 playlistitems_list_request, playlistitems_list_response)
 
     def sync_items_to_youtube(self):
-        intended_id_list = self.video_ids
+        intended_id_list = self.video_ids.copy()
         for video_id in self.video_ids:
             self.delete_video(video_id)
         for video_id in intended_id_list:
