@@ -77,6 +77,7 @@ class RgvedaRepo(video_repo.VideoRepo):
             playlist.video_ids = video_ids
             playlist.sync_items_to_youtube()
 
+
 if __name__ == "__main__":
     local_repo = RgvedaRepo(repo_paths=["/home/vvasuki/Videos/Rgveda/"]) 
     # Passing service_account_file does not seem to work as intended.
