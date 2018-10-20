@@ -250,12 +250,12 @@ class Playlist(object):
         logging.info(response)
         response['snippet']['position'] = position
         item = PlaylistItem.from_metadata(response, api_service=self.api_service)
-        self.items.insert(0, item)
+        self.items.insert(position, item)
         return item
 
     def add_videos(self, video_ids):
         """Add multiple videos to this playlist. Update YouTube as well."""
-        [self.add_video_yt(video_id=video_id, position=0) for video_id in reversed(video_ids)]
+        [self.add_video_yt(video_id=video_id, position=position) for position, video_id in video_ids]
         
     def set_videos(self, video_ids):
         if self.get_video_ids() != video_ids:
