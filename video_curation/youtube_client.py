@@ -255,7 +255,7 @@ class Playlist(object):
 
     def add_videos(self, video_ids):
         """Add multiple videos to this playlist. Update YouTube as well."""
-        [self.add_video_yt(video_id=video_id, position=position) for position, video_id in video_ids]
+        [self.add_video_yt(video_id=video_id, position=position) for position, video_id in enumerate(video_ids)]
         
     def set_videos(self, video_ids):
         if self.get_video_ids() != video_ids:
