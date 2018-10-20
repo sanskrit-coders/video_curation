@@ -17,7 +17,7 @@ def get_video_title(mandala_sukta_id):
 def get_playlist_title(mandala_id):
     return "%s Rigveda Shakala Samhita Kerala Style ऋग्वेद-शकल-संहिता-केरल-शैल्या" % mandala_id
 
-description = "This was produced by an IGNCA project (http://vedicheritage.gov.in/), funded by the Indian taxpayer. This has been reproduced here for convenience. Also see https://archive.org/details/shAkhala-rig-veda-kerala ."
+description = "This was produced by an IGNCA project (http://vedicheritage.gov.in/), funded by the Indian taxpayer. This has been reproduced here for convenience (see our playlists - https://www.youtube.com/channel/UCvxkCVxx8TYFK3UVlBfa9Yw/playlists ). Also see https://archive.org/details/shAkhala-rig-veda-kerala ."
 
 video_tags = ["RIGSSK", "Veda", "वेदाः"]
 
@@ -35,7 +35,7 @@ class RgvedaRepo(video_repo.VideoRepo):
         missing_mandala_video_titles = sorted(set(local_mandala_videos_map.keys()) - set(yt_mandala_video_ids))
         logging.info("Missing videos: %s", missing_mandala_video_titles)
         for title in missing_mandala_video_titles:
-            video = youtube_client.YtVideo(title=title, api_service=yt_channel.api_service, privacy='public', tags=video_tags)
+            video = youtube_client.YtVideo(title=title, description=description, api_service=yt_channel.api_service, privacy='public', tags=video_tags)
             if dry_run:
                 logging.info("Would have uploaded: %s", video)
             else:
@@ -73,9 +73,7 @@ class RgvedaRepo(video_repo.VideoRepo):
             playlist = youtube_client.Playlist(title=get_playlist_title(mandala_id=mandala_id_str), description=description, tags=video_tags, api_service=yt_channel.api_service, privacy='public')
             playlist.add_to_youtube()
         video_ids = [video.id for video in yt_mandala_videos]
-        if playlist.video_ids != video_ids:
-            playlist.video_ids = video_ids
-            playlist.sync_items_to_youtube()
+        playlist.set_videos(video_ids=video_ids)
 
 
 if __name__ == "__main__":
@@ -86,11 +84,11 @@ if __name__ == "__main__":
     channel.set_uploaded_videos()
     channel.set_playlists()
     # channel.delete_rejected_videos(dry_run=True)
-    # for mandala_id in range(1, 11):
-    #     local_repo.upload_mandala_videos(mandala_id=mandala_id, yt_channel=channel, dry_run=True)
+    # for mandala_id in range(10, 11):
+    #     local_repo.upload_mandala_videos(mandala_id=mandala_id, yt_channel=channel, dry_run=False)
     # local_repo.update_video_metadatas(channel)
     # local_repo.update_video_privacy(channel)
-    for mandala_id in range(9, 11):
+    for mandala_id in range(10, 11):
         local_repo.set_mandala_videos_in_playlist(mandala_id=mandala_id, yt_channel=channel)
     # logging.info(pprint.pformat(uploaded_vids))
 

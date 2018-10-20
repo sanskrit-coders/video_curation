@@ -1,5 +1,5 @@
 """A wrapper around Youtube API."""
-
+import itertools
 import logging
 
 import http.client as httplib
@@ -146,27 +146,64 @@ class YtVideo(object):
         ).execute()
         logging.info(response)
 
+class PlaylistItem(object):
+    def __init__(self, api_service, video_id, playlist_id, title=None, item_id=None, position=0):
+        self.api_service = api_service
+        self.video_id = video_id
+        self.item_id = item_id
+        self.position = position
+        self.title = title
+        self.playlist_id = playlist_id
+
+    def __repr__(self):
+        return "video_id:%s position:%s" % (self.video_id, self.position)
+
+    def to_video(self):
+        id = self.metadata["id"]
+        title = self.metadata['snippet']['title']
+        description = self.metadata['snippet'].get('description', None)
+        tags = self.metadata['snippet'].get('tags', None)
+        category_id = self.metadata['snippet'].get('categoryId', 1)
+        privacy = self.metadata.get('status', {'privacyStatus': 'public'}).get('privacyStatus', 'public')
+        return YtVideo(id=id, title=title, description=description, tags=tags, category_id=category_id, api_service=self.api_servicem, privacy=privacy)
+
+    @classmethod
+    def from_metadata(cls, metadata, api_service):
+        video_id = metadata['snippet']['resourceId']['videoId']
+        item_id = metadata['id']
+        if 'position' not in metadata['snippet']:
+            logging.error(metadata)
+        metadata['snippet']['position']
+        position = metadata['snippet']['position']
+        playlist_id = metadata['snippet']['playlistId']
+        title = metadata['snippet']['title']
+        self = PlaylistItem(video_id=video_id, playlist_id=playlist_id, item_id=item_id, position=position, title=title, api_service=api_service)
+        return self
+
+    def to_metadata(self):
+        return {'id': self.item_id,
+                'snippet.playlistId': self.playlist_id,
+                'snippet.resourceId.kind': 'youtube#video',
+                'snippet.resourceId.videoId': self.video_id,
+                'snippet.position': self.position}
+
 
 class Playlist(object):
     """
     Represents a YouTube playlist.
     """
-    def __init__(self, api_service, title, id=None, description="", tags=None, privacy='public', video_ids=None):
-        if video_ids is None:
-            video_ids = []
+    def __init__(self, api_service, title, id=None, description="", tags=None, privacy='public'):
         if tags is None:
             tags = []
         self.id = id
         self.title = title
         self.description = description
         self.tags = tags.copy()
-        self.video_ids = video_ids.copy()
         self.privacy = privacy
         self.api_service = api_service
-        self.video_id_to_item_id = {}
+        self.items = []
         if id is not None:
             self.sync_items_from_youtube()
-
 
     def __repr__(self):
         return "id:%s title:%s" % (self.id, self.title)
@@ -174,8 +211,32 @@ class Playlist(object):
     def __lt__(self, other):
         return self.title < other.title
 
+    def _sync_positions_yt(self):
+        for index, item in enumerate(self.items):
+            if item.position != index:
+                item.position = index
+                resource = get_api_request_dict(item.to_metadata())
+                response = self.api_service.playlistItems().insert(
+                    body=resource,
+                    part='snippet'
+                ).execute()
+                logging.info(response)
+
+    def deduplicate(self, key=lambda item:item.video_id):
+        sorted_items = sorted(self.items, key=key)
+        for key, items_iterator in itertools.groupby(sorted_items, key=key):
+            items = list(items_iterator)
+            if len(items) > 0:
+                logging.info("Found duplicates for key %s : %s", key, items)
+                for item in items[1:]:
+                    self.delete_item(item)
+
+    def sort(self, key=lambda item: item.title):
+        self.items.sort(key=key)
+        self._sync_positions_yt()
+
     # https://developers.google.com/youtube/v3/docs/playlistItems#resource
-    def add_video(self, video_id, position=0):
+    def add_video_yt(self, video_id, position=0):
         """Insert a video into this playlist. Update YouTube as well."""
         properties = {'snippet.playlistId': self.id,
                       'snippet.resourceId.kind': 'youtube#video',
@@ -187,21 +248,34 @@ class Playlist(object):
             part='snippet'
         ).execute()
         logging.info(response)
-        self.video_ids.insert(position, video_id)
-        self.video_id_to_item_id[response["id"]] = video_id
+        response['snippet']['position'] = position
+        item = PlaylistItem.from_metadata(response, api_service=self.api_service)
+        self.items.insert(0, item)
+        return item
 
     def add_videos(self, video_ids):
         """Add multiple videos to this playlist. Update YouTube as well."""
-        [self.add_video(video_id=video_id, position=position) for position, video_id in video_ids]
+        [self.add_video_yt(video_id=video_id, position=0) for video_id in reversed(video_ids)]
+        
+    def set_videos(self, video_ids):
+        if self.get_video_ids() != video_ids:
+            self.clear_items()
+            self.add_videos(video_ids=video_ids)
+
+    def delete_item(self, item):
+        response = self.api_service.playlistItems().delete(id=item.item_id).execute()
+        logging.info(response)
+        position = self.items.index(item)
+        self.items.remove(item)
+        for index, item in enumerate(self.items[position:]):
+            item.position = index
 
     # https://developers.google.com/youtube/v3/docs/playlistItems#resource
     def delete_video(self, video_id):
         """Delete some video from this playlist. Update YouTube as well."""
-        if video_id in self.video_id_to_item_id:
-            response = self.api_service.playlistItems().delete(id=self.video_id_to_item_id[video_id]).execute()
-            logging.info(response)
-            self.video_ids.remove(video_id)
-            self.video_id_to_item_id.pop(video_id, None)
+        items_to_delete = list(filter(lambda item: item.video_id == video_id, self.items))
+        for item in items_to_delete:
+            self.delete_item(item)
 
     def sync_items_from_youtube(self):
         """
@@ -212,31 +286,20 @@ class Playlist(object):
             part='snippet',
             maxResults=50
         )
-        self.video_ids = []
-        self.video_id_to_item_id = {}
+        item_metadatas = []
         while playlistitems_list_request:
             playlistitems_list_response = playlistitems_list_request.execute()
-
-            video_ids = [playlist_item['snippet']['resourceId']['videoId']
-                         for playlist_item in playlistitems_list_response['items']
-                         ]
-            item_ids = [playlist_item['id']
-                        for playlist_item in playlistitems_list_response['items']
-                        ]
-            # Print information about each video.
-            self.video_ids.extend(video_ids)
-            self.video_id_to_item_id.update(dict(zip(video_ids, item_ids)))
-
+            item_metadatas.extend(playlistitems_list_response['items'])
             playlistitems_list_request = self.api_service.playlistItems().list_next(
                 playlistitems_list_request, playlistitems_list_response)
 
-    def sync_items_to_youtube(self):
-        intended_id_list = self.video_ids.copy()
-        for video_id in self.video_ids:
-            self.delete_video(video_id)
-        for video_id in intended_id_list:
-            self.add_video(video_id=video_id, position=intended_id_list.index(video_id))
-        
+        item_metadatas.sort(key=lambda item: item['snippet']['position'])
+        self.items = [PlaylistItem.from_metadata(metadata=metadata, api_service=self.api_service) for metadata in item_metadatas]
+
+    def clear_items(self):
+        logging.info("Clearing %d items: %s", len(self.items), self.items)
+        for item in self.items.copy():
+            self.delete_item(item=item)
 
     def sync_metadata_to_youtube(self):
         """Set metadata info in YouTube."""
@@ -274,13 +337,17 @@ class Playlist(object):
 
     def get_videos(self, part="snippet,status"):
         videos = []
-        id_chunks = more_itertools.chunked(self.video_ids, 50)
-        for id_chunk in id_chunks:
-            response = self.api_service.videos().list(
-                part=part,
-                id=",".join(id_chunk)
-            ).execute()
-            videos.extend([YtVideo.from_yt_metadata(yt_metadata=yt_metadata, api_service=self.api_service) for yt_metadata in response["items"]])
+        if part=="snippet":
+            videos = [item.get_video() for item in self.items]
+        else:
+            video_ids = self.get_video_ids()
+            id_chunks = more_itertools.chunked(video_ids, 50)
+            for id_chunk in id_chunks:
+                response = self.api_service.videos().list(
+                    part=part,
+                    id=",".join(id_chunk)
+                ).execute()
+                videos.extend([YtVideo.from_yt_metadata(yt_metadata=yt_metadata, api_service=self.api_service) for yt_metadata in response["items"]])
         return videos
 
     def get_non_uploaded_private(self):
@@ -304,6 +371,9 @@ class Playlist(object):
         self = Playlist(id=id, title=title, description=description, tags=tags, privacy=privacy, api_service=api_service)
         self.yt_metadata = yt_metadata
         return self
+
+    def get_video_ids(self):
+        return set([item.video_id for item in self.items])
 
 
 class Channel(object):
