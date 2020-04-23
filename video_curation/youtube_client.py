@@ -13,8 +13,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
-from video_curation import google_api_helper
-from video_curation.google_api_helper import get_api_request_dict
+from curation_utils.google import google_api_helper
+from curation_utils.google.google_api_helper import get_api_request_dict
 
 ok_upload_status = ['uploaded', 'processed']
 
@@ -146,6 +146,7 @@ class YtVideo(object):
         ).execute()
         logging.info(response)
 
+
 class PlaylistItem(object):
     def __init__(self, api_service, video_id, playlist_id, title=None, item_id=None, position=0):
         self.api_service = api_service
@@ -159,13 +160,14 @@ class PlaylistItem(object):
         return "video_id:%s position:%s" % (self.video_id, self.position)
 
     def to_video(self):
-        id = self.metadata["id"]
-        title = self.metadata['snippet']['title']
-        description = self.metadata['snippet'].get('description', None)
-        tags = self.metadata['snippet'].get('tags', None)
-        category_id = self.metadata['snippet'].get('categoryId', 1)
-        privacy = self.metadata.get('status', {'privacyStatus': 'public'}).get('privacyStatus', 'public')
-        return YtVideo(id=id, title=title, description=description, tags=tags, category_id=category_id, api_service=self.api_servicem, privacy=privacy)
+        metadata = self.to_metadata()
+        id = metadata["id"]
+        title = metadata['snippet']['title']
+        description = metadata['snippet'].get('description', None)
+        tags = metadata['snippet'].get('tags', None)
+        category_id = metadata['snippet'].get('categoryId', 1)
+        privacy = metadata.get('status', {'privacyStatus': 'public'}).get('privacyStatus', 'public')
+        return YtVideo(id=id, title=title, description=description, tags=tags, category_id=category_id, api_service=self.api_service, privacy=privacy)
 
     @classmethod
     def from_metadata(cls, metadata, api_service):
@@ -173,7 +175,7 @@ class PlaylistItem(object):
         item_id = metadata['id']
         if 'position' not in metadata['snippet']:
             logging.error(metadata)
-        metadata['snippet']['position']
+        # metadata['snippet']['position']
         position = metadata['snippet']['position']
         playlist_id = metadata['snippet']['playlistId']
         title = metadata['snippet']['title']
