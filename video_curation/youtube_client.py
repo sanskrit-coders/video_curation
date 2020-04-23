@@ -13,8 +13,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
-from curation_utils.google import google_api_helper
-from curation_utils.google.google_api_helper import get_api_request_dict
+from curation_utils.google import api_helper
+from curation_utils.google.api_helper import get_api_request_dict
 
 ok_upload_status = ['uploaded', 'processed']
 
@@ -418,7 +418,7 @@ class Channel(object):
         scopes = ['https://www.googleapis.com/auth/youtube']
         api_service_name = 'youtube'
         api_version = 'v3'
-        credentials = google_api_helper.get_credentials(service_account_file=service_account_file, token_file_path=token_file_path, client_secrets_file=client_secret_file, scopes=scopes)
+        credentials = api_helper.get_credentials(service_account_file=service_account_file, token_file_path=token_file_path, client_secrets_file=client_secret_file, scopes=scopes)
         self.api_service = build(serviceName=api_service_name, version=api_version, credentials=credentials)
         logging.info("Done authenticating.")
 
