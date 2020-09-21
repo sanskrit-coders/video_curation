@@ -1,3 +1,4 @@
+^[![Build status](https://github.com/sanskrit-coders/video_curation/workflows/Python%20package/badge.svg)](https://github.com/sanskrit-coders/video_curation/actions)
 [![Build Status](https://travis-ci.org/sanskrit-coders/video_curation.svg?branch=master)](https://travis-ci.org/sanskrit-coders/video_curation)
 [![Documentation Status](https://readthedocs.org/projects/video_curation/badge/?version=latest)](http://video_curation.readthedocs.io/en/latest/?badge=latest)
 
